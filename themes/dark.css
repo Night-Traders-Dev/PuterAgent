@@ -1,0 +1,14 @@
+:root {
+  --bg: #0b1220;
+  --surface: rgba(12, 20, 38, .92);
+  --surface2: rgba(15, 25, 44, .94);
+  --border: rgba(102, 153, 255, .18);
+  --border2: rgba(102, 153, 255, .28);
+  --text: #d7e3ff;
+  --muted: rgba(141, 156, 195, .68);
+  --orange: #8ab4f8;
+  --coral: #5dd7ff;
+  --teal: #1f3f66;
+  --teal2: #183353;
+  --teal3: #0d1c2e;
+}

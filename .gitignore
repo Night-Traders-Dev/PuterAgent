@@ -4,3 +4,5 @@ SysPrompt
 
 ## Directories
 __pycache__/
+.puteragent/
+.memory/

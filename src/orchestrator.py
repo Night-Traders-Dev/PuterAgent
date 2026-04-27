@@ -42,16 +42,30 @@ DELEGATION RULES
 
 
 class Orchestrator(BaseAgent):
-    def __init__(self, token: str) -> None:
+    def __init__(self, token: str, profile: dict | None = None) -> None:
+        system_prompt = ORCHESTRATOR_PROMPT
+        if profile:
+            profile_lines = [f"{k.title()}: {v}" for k, v in profile.items() if v and k != "theme"]
+            system_prompt += "\n\nUSER PROFILE\n" + "\n".join(profile_lines)
+            system_prompt += "\n\nINSTRUCTIONS\n- Always refer to the user by name when available.\n- Remember the user’s role, preferences, and orientation.\n- Adapt answers to the user’s background and keep recommendations actionable.\n"
+
         super().__init__(
             name="Orchestrator",
-            system_prompt=ORCHESTRATOR_PROMPT,
+            system_prompt=system_prompt,
             token=token,
         )
         self._token        = token
         self._conversation: list[dict] = []   # persistent across chat() calls
         self.last_turn_metrics = self.turn_metrics()
         self._register_routing_tools()
+
+    def set_profile(self, profile: dict | None) -> None:
+        if not profile:
+            return
+        profile_lines = [f"{k.title()}: {v}" for k, v in profile.items() if v and k != "theme"]
+        system_prompt = ORCHESTRATOR_PROMPT + "\n\nUSER PROFILE\n" + "\n".join(profile_lines)
+        system_prompt += "\n\nINSTRUCTIONS\n- Always refer to the user by name when available.\n- Remember the user’s role, preferences, and orientation.\n- Adapt answers to the user’s background and keep recommendations actionable.\n"
+        self.system_prompt = system_prompt
 
     # ── Register expert delegation as callable tools ──────────────────────────
 

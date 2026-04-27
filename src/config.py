@@ -11,6 +11,7 @@ WORKSPACE   = pathlib.Path.cwd()   # All file tools are scoped to this dir
 
 # ── API ───────────────────────────────────────────────────────────────────────
 API_URL         = "https://api.puter.com/puterai/openai/v1/chat/completions"
+MEMORY_PATH     = BASE_DIR.parent / ".memory"
 AVAILABLE_MODELS = [
     "deepseek/deepseek-v4-pro",
     "deepseek/deepseek-chat-v3.1",
@@ -25,6 +26,16 @@ AVAILABLE_MODELS = [
     "nvidia/nemotron-3-super-120b-a12b",
     "google/gemini-3.1-pro-preview",
 ]
+DEFAULT_USER_PROFILE = {
+    "name": "Developer",
+    "pronouns": "they/them",
+    "role": "Software engineer",
+    "company": "",
+    "timezone": "",
+    "bio": "A practical, detail-oriented software engineer who appreciates concise technical answers and clear explanations.",
+    "preferences": "Use my name, remember my role and preferences, and keep recommendations actionable.",
+    "theme": "default",
+}
 MODEL           = "deepseek/deepseek-v4-pro"
 TOOL_FALLBACK_MODELS = [
     "deepseek/deepseek-chat-v3.1",

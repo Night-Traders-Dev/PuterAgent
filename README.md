@@ -11,6 +11,9 @@ PuterAgent is a local multi-agent coding assistant built around a Puter-compatib
 - Web chat history and clear session support
 - Text file uploads in the browser UI
 - Active model display with provider avatar switching
+- Persistent profile and per-model chat history
+- Theme selection and live web UI personalization
+- Directory and GitHub repo analysis from the browser settings panel
 - Per-turn and session token metrics
 
 ## Requirements
@@ -48,7 +51,7 @@ python src/main.py --cli
 python src/main.py --web
 ```
 
-The web UI will launch locally and serve `src/ui.html`.
+The web UI will launch locally and serve `src/ui.html`, including profile settings, theme selection, and repo analysis.
 
 ## Model Selection
 

@@ -221,7 +221,24 @@ main{flex:1;display:flex;flex-direction:column;min-width:0;}
 #send-btn:active,.icon-btn:active{transform:scale(.96);}
 #send-btn:disabled{background:rgba(231,111,81,.3);cursor:not-allowed;}
 #send-btn svg,.icon-btn svg{width:18px;height:18px;fill:currentColor;}
-.input-hint{font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:7px;}
+#settings-btn{width:auto;padding:0 14px;height:40px;border-radius:9px;background:rgba(243,237,228,.08);border:1px solid rgba(255,255,255,.12);color:var(--text);font-family:var(--mono);font-size:12px;}
+.settings-panel{
+  position:fixed;top:0;right:0;bottom:0;width:min(420px,100%);background:rgba(20,28,39,.96);
+  border-left:1px solid rgba(255,255,255,.08);box-shadow:-12px 0 40px rgba(0,0,0,.34);transform:translateX(100%);
+  transition:transform .25s ease-in-out;z-index:20;display:flex;flex-direction:column;
+}
+.settings-panel.open{transform:translateX(0);}
+.settings-panel header{display:flex;align-items:center;justify-content:space-between;padding:18px 18px 10px;border-bottom:1px solid rgba(255,255,255,.08);}
+.settings-panel h2{font-size:16px;color:var(--text);margin:0;}
+.settings-close{border:none;background:none;color:var(--muted);font-size:20px;cursor:pointer;}
+.settings-body{flex:1;overflow-y:auto;padding:14px 18px;display:flex;flex-direction:column;gap:14px;}
+.field-label{font-family:var(--mono);font-size:10px;text-transform:uppercase;color:var(--muted);letter-spacing:1px;margin-bottom:6px;}
+.field-control,input,textarea,select{width:100%;border:1px solid rgba(255,255,255,.12);border-radius:9px;background:rgba(243,237,228,.05);color:var(--text);padding:10px 12px;font-family:var(--mono);font-size:13px;}
+textarea{resize:vertical;min-height:84px;}
+.settings-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+.primary-btn{padding:10px 14px;border:none;border-radius:9px;background:var(--orange);color:#fff;cursor:pointer;font-weight:600;}
+.secondary-btn{padding:10px 14px;border:1px solid rgba(255,255,255,.12);border-radius:9px;background:transparent;color:var(--text);cursor:pointer;}
+.settings-note{font-family:var(--mono);font-size:11px;color:var(--muted);line-height:1.5;}
 
 @media (max-width: 860px){
   aside{width:226px;}
@@ -232,6 +249,7 @@ main{flex:1;display:flex;flex-direction:column;min-width:0;}
   .metrics{flex-wrap:wrap;}
 }
 </style>
+<link rel="stylesheet" id="theme-stylesheet" href="">
 </head>
 <body>
 
@@ -328,7 +346,58 @@ main{flex:1;display:flex;flex-direction:column;min-width:0;}
         <span>Out <b id="metric-output">0</b></span>
         <span>Total <b id="metric-total">0</b></span>
       </div>
+      <button id="settings-btn" class="icon-btn" title="Settings">⚙</button>
       <span id="status-label">ready</span>
+    </div>
+  </div>
+
+  <div class="settings-panel" id="settings-panel">
+    <header>
+      <h2>Settings</h2>
+      <button class="settings-close" id="settings-close" aria-label="Close settings">×</button>
+    </header>
+    <div class="settings-body">
+      <div>
+        <div class="field-label">Your name</div>
+        <input id="profile-name" type="text" placeholder="Developer">
+      </div>
+      <div>
+        <div class="field-label">Pronouns</div>
+        <input id="profile-pronouns" type="text" placeholder="they/them">
+      </div>
+      <div>
+        <div class="field-label">Role</div>
+        <input id="profile-role" type="text" placeholder="Software engineer">
+      </div>
+      <div>
+        <div class="field-label">Company / team</div>
+        <input id="profile-company" type="text" placeholder="Acme Corp">
+      </div>
+      <div>
+        <div class="field-label">Timezone</div>
+        <input id="profile-timezone" type="text" placeholder="UTC+0">
+      </div>
+      <div>
+        <div class="field-label">Bio</div>
+        <textarea id="profile-bio" placeholder="A brief developer bio..."></textarea>
+      </div>
+      <div>
+        <div class="field-label">Preferences</div>
+        <textarea id="profile-preferences" placeholder="How should PuterAgent assist you?"></textarea>
+      </div>
+      <div>
+        <div class="field-label">Theme</div>
+        <select id="theme-select"></select>
+      </div>
+      <div>
+        <div class="field-label">Directory or GitHub repo</div>
+        <input id="analysis-target" type="text" placeholder="./src or https://github.com/user/repo">
+      </div>
+      <div class="settings-actions">
+        <button class="primary-btn" id="save-profile-btn">Save profile</button>
+        <button class="secondary-btn" id="run-analysis-btn">Analyze</button>
+      </div>
+      <div class="settings-note">Saved profile and theme persist locally. Use the analyzer to inspect relative folders or a GitHub repo.</div>
     </div>
   </div>
 
@@ -379,6 +448,21 @@ const pendingFilesEl = document.getElementById('pending-files');
 const metricInputEl = document.getElementById('metric-input');
 const metricOutputEl = document.getElementById('metric-output');
 const metricTotalEl = document.getElementById('metric-total');
+const settingsBtn = document.getElementById('settings-btn');
+const settingsPanel = document.getElementById('settings-panel');
+const settingsClose = document.getElementById('settings-close');
+const saveProfileBtn = document.getElementById('save-profile-btn');
+const runAnalysisBtn = document.getElementById('run-analysis-btn');
+const themeSelect = document.getElementById('theme-select');
+const analysisTarget = document.getElementById('analysis-target');
+const profileNameEl = document.getElementById('profile-name');
+const profilePronounsEl = document.getElementById('profile-pronouns');
+const profileRoleEl = document.getElementById('profile-role');
+const profileCompanyEl = document.getElementById('profile-company');
+const profileTimezoneEl = document.getElementById('profile-timezone');
+const profileBioEl = document.getElementById('profile-bio');
+const profilePreferencesEl = document.getElementById('profile-preferences');
+const themeStylesheet = document.getElementById('theme-stylesheet');
 
 const MAX_FILES = 6;
 const MAX_FILE_CHARS = 120000;
@@ -464,6 +548,129 @@ function formatBytes(bytes) {
 
 function formatCount(value) {
   return new Intl.NumberFormat().format(Number(value || 0));
+}
+
+function openSettings() {
+  settingsPanel.classList.add('open');
+}
+
+function closeSettings() {
+  settingsPanel.classList.remove('open');
+}
+
+function setTheme(theme) {
+  if (!theme) return;
+  themeStylesheet.href = `/themes/${encodeURIComponent(theme)}.css`;
+  localStorage.setItem('puter-theme', theme);
+}
+
+async function loadProfileSettings() {
+  try {
+    const response = await fetch('/profile');
+    if (!response.ok) return;
+    const data = await response.json();
+    const profile = data.profile || {};
+    profileNameEl.value = profile.name || '';
+    profilePronounsEl.value = profile.pronouns || '';
+    profileRoleEl.value = profile.role || '';
+    profileCompanyEl.value = profile.company || '';
+    profileTimezoneEl.value = profile.timezone || '';
+    profileBioEl.value = profile.bio || '';
+    profilePreferencesEl.value = profile.preferences || '';
+    const themes = data.themes || [];
+    themeSelect.innerHTML = themes.map(theme => `<option value="${encodeURIComponent(theme)}">${escapeHtml(theme)}</option>`).join('');
+    const chosen = profile.theme || localStorage.getItem('puter-theme') || themeSelect.value;
+    themeSelect.value = chosen;
+    setTheme(chosen);
+  } catch (err) {
+    console.warn('Failed to load profile', err);
+  }
+}
+
+async function saveProfile() {
+  const payload = {
+    name: profileNameEl.value.trim(),
+    pronouns: profilePronounsEl.value.trim(),
+    role: profileRoleEl.value.trim(),
+    company: profileCompanyEl.value.trim(),
+    timezone: profileTimezoneEl.value.trim(),
+    bio: profileBioEl.value.trim(),
+    preferences: profilePreferencesEl.value.trim(),
+    theme: themeSelect.value,
+  };
+  try {
+    const response = await fetch('/profile', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) throw new Error('Could not save profile');
+    const data = await response.json();
+    setTheme(data.profile.theme);
+    closeSettings();
+    setStatus('profile saved');
+    setTimeout(() => setStatus('ready'), 1800);
+  } catch (err) {
+    setStatus('save failed');
+    console.error(err);
+  }
+}
+
+async function runAnalysis() {
+  const target = analysisTarget.value.trim();
+  if (!target) return;
+  setStatus('analyzing...', true);
+  try {
+    const response = await fetch('/analyze', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({target}),
+    });
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || 'Analysis failed');
+    }
+    const data = await response.json();
+    const resultText = `Analysis path: ${data.analysis.path}\n${data.analysis.count} item(s) found.`;
+    appendMessage('assistant', resultText, {model: modelSelect.value});
+  } catch (err) {
+    appendMessage('assistant', `Analysis error: ${String(err)}`, {model: modelSelect.value});
+  } finally {
+    setStatus('ready');
+  }
+}
+
+async function loadHistory(model = modelSelect.value) {
+  try {
+    const response = await fetch(`/history?model=${encodeURIComponent(model)}`);
+    if (!response.ok) return;
+    const data = await response.json();
+    if (data.model && modelSelect.querySelector(`option[value="${CSS.escape(data.model)}"]`)) {
+      modelSelect.value = data.model;
+    }
+    updateActiveModel(modelSelect.value);
+    updateMetrics(data.session_metrics || {});
+    messageStore = [];
+    messagesEl.innerHTML = '';
+    if (!data.messages?.length) {
+      resetConversationView();
+      return;
+    }
+    data.messages.forEach(item => {
+      appendMessage(item.role, item.content, {
+        id: item.id,
+        model: item.model,
+        used_model: item.used_model,
+        attachments: item.attachments || [],
+        metrics: item.metrics,
+        skipStore: true,
+      });
+      messageStore.push(item);
+    });
+    rebuildHistoryList();
+  } catch {
+    updateActiveModel(modelSelect.value);
+  }
 }
 
 function attachmentList(attachments = [], removable = false) {
@@ -626,39 +833,6 @@ function resetConversationView() {
   setStatus('ready');
 }
 
-async function loadHistory() {
-  try {
-    const response = await fetch('/history');
-    if (!response.ok) return;
-    const data = await response.json();
-    if (data.model && modelSelect.querySelector(`option[value="${CSS.escape(data.model)}"]`)) {
-      modelSelect.value = data.model;
-    }
-    updateActiveModel(modelSelect.value);
-    updateMetrics(data.session_metrics || {});
-    messageStore = [];
-    messagesEl.innerHTML = '';
-    if (!data.messages?.length) {
-      resetConversationView();
-      return;
-    }
-    data.messages.forEach(item => {
-      appendMessage(item.role, item.content, {
-        id: item.id,
-        model: item.model,
-        used_model: item.used_model,
-        attachments: item.attachments || [],
-        metrics: item.metrics,
-        skipStore: true,
-      });
-      messageStore.push(item);
-    });
-    rebuildHistoryList();
-  } catch {
-    updateActiveModel(modelSelect.value);
-  }
-}
-
 async function sendMessage() {
   const text = inputEl.value.trim();
   if (!text && !pendingAttachments.length) return;
@@ -717,16 +891,21 @@ fileInput.addEventListener('change', event => {
   fileInput.value = '';
 });
 modelSelect.addEventListener('change', () => {
-  updateActiveModel(modelSelect.value);
-  setStatus('ready');
+  setStatus('loading history...', true);
+  loadHistory(modelSelect.value).finally(() => setStatus('ready'));
 });
 clearBtn.addEventListener('click', () => {
   fetch('/clear', {method:'POST'}).catch(() => null);
   resetConversationView();
 });
+settingsBtn.addEventListener('click', openSettings);
+settingsClose.addEventListener('click', closeSettings);
+saveProfileBtn.addEventListener('click', saveProfile);
+runAnalysisBtn.addEventListener('click', runAnalysis);
 
 updateActiveModel(modelSelect.value);
 setStatus('ready');
+loadProfileSettings();
 loadHistory();
 </script>
 </body>
