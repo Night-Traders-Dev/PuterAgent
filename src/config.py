@@ -10,7 +10,7 @@ SYSPROMPT_PATH = BASE_DIR.parent / "SysPrompt"
 WORKSPACE   = pathlib.Path.cwd()   # All file tools are scoped to this dir
 
 # ── API ───────────────────────────────────────────────────────────────────────
-API_URL         = "https://api.puter.com/drivers/call"
+API_URL         = "https://api.puter.com/puterai/openai/v1/chat/completions"
 AVAILABLE_MODELS = [
     "deepseek/deepseek-v4-pro",
     "anthropic/claude-opus-4-7",
