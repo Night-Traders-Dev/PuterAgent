@@ -191,7 +191,8 @@ class Orchestrator(BaseAgent):
                 self._log(f"\n  🔀 Orchestrator routing → {fn_name}")
             messages.append({"role": "assistant", "content": text or "", "tool_calls": tool_calls})
             
-            # (In a real implementation, you would continue the delegation logic here)
+            self._execute_tools(messages, tool_calls)
+            
             iteration += 1
             if iteration >= current_limit:
                 self._log("\n⚠️ Max iterations reached. Consulting OversightExpert...")
@@ -200,18 +201,21 @@ class Orchestrator(BaseAgent):
                 self._log(f"\n✅ Oversight: Limit increased to {current_limit}.")
         return "Orchestrator: Max iterations reached."
 
-            for tc in tool_calls:
-                result = self.registry.dispatch(
-                    tc["function"]["name"],
-                    tc["function"].get("arguments", "{}"),
-                )
-                messages.append({
-                    "role":         "tool",
-                    "tool_call_id":  tc["id"],
-                    "content":       result,
-                })
+    # ── Tool execution loop ───────────────────────────────────────────────────
 
-        err = "Orchestrator: Max tool iterations reached."
-        self._conversation.append({"role": "assistant", "content": err})
+    def _execute_tools(self, messages: list[dict], tool_calls: list[dict]) -> None:
+        """Executes all tool calls in a batch."""
+        for tc in tool_calls:
+            result = self.registry.dispatch(
+                tc["function"]["name"],
+                tc["function"].get("arguments", "{}"),
+            )
+            messages.append({
+                "role":         "tool",
+                "tool_call_id":  tc["id"],
+                "content":       result,
+            })
+
+    # ── Metrics ───────────────────────────────────────────────────────────────
         self.last_turn_metrics = self.turn_metrics()
         return err
