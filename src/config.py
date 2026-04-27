@@ -39,7 +39,7 @@ MAX_TOTAL_ATTACHMENT_CHARS = 360_000
 
 API_HEADERS = {
     "Content-Type": "application/json",
-    "User-Agent":   "Mozilla/5.0 (OS-Dev-Agent/2.0)",
+    "User-Agent":   "Mozilla/5.0 (PuterAgent/2.0)",
     "Origin":       "https://puter.com",
     "Referer":      "https://puter.com/",
 }

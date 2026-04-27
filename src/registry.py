@@ -36,7 +36,7 @@ class Tool:
     fn:          Callable
     params:      dict[str, ToolParam] = field(default_factory=dict)
 
-    # ── Schema generation (OpenAI / DeepSeek function-call format) ────────────
+    # ── Schema generation (OpenAI-compatible function-call format) ────────────
 
     def to_schema(self) -> dict:
         properties: dict = {}

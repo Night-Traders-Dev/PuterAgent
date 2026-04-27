@@ -71,15 +71,38 @@ class BaseAgent:
         for key in ("prompt_tokens", "completion_tokens", "total_tokens"):
             target[key] = int(target.get(key, 0)) + int(usage.get(key, 0))
 
+    @staticmethod
+    def _estimate_tokens(text: str) -> int:
+        if not text:
+            return 0
+        return max(1, (len(text) + 3) // 4)
+
+    def _estimated_usage(self, messages: list[dict], data: dict) -> dict[str, int]:
+        prompt_text = json.dumps(messages, ensure_ascii=False)
+        text, tool_calls = self._parse_response(data)
+        completion_text = text
+        if tool_calls:
+            completion_text += json.dumps(tool_calls, ensure_ascii=False)
+
+        prompt_tokens = self._estimate_tokens(prompt_text)
+        completion_tokens = self._estimate_tokens(completion_text)
+        return {
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
+            "total_tokens": prompt_tokens + completion_tokens,
+        }
+
     def _reset_turn_metrics(self) -> None:
         self._last_model = None
         self._last_usage = self._empty_usage()
         self._turn_usage = self._empty_usage()
         self._turn_models = []
 
-    def _record_response_metadata(self, data: dict, fallback_model: str) -> None:
+    def _record_response_metadata(self, data: dict, fallback_model: str, messages: list[dict]) -> None:
         self._last_model = str(data.get("model") or fallback_model)
         self._last_usage = self._normalise_usage(data)
+        if self._last_usage["total_tokens"] <= 0:
+            self._last_usage = self._estimated_usage(messages, data)
         self._add_usage(self._turn_usage, self._last_usage)
         if self._last_model not in self._turn_models:
             self._turn_models.append(self._last_model)
@@ -203,7 +226,7 @@ class BaseAgent:
                     continue
 
             self._last_error = None
-            self._record_response_metadata(data, model)
+            self._record_response_metadata(data, model, messages)
             return data
 
         return None

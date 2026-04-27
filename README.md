@@ -1,6 +1,6 @@
-# DeepSeek V4 Agent
+# PuterAgent
 
-DeepSeek V4 Agent is a local multi-agent coding assistant built around a Puter-compatible orchestrator and expert agents. It supports both a terminal CLI mode and a browser-based web UI.
+PuterAgent is a local multi-agent coding assistant built around a Puter-compatible orchestrator and expert agents. It supports both a terminal CLI mode and a browser-based web UI.
 
 ## Features
 
@@ -8,7 +8,10 @@ DeepSeek V4 Agent is a local multi-agent coding assistant built around a Puter-c
 - Browser UI via `--web`
 - Model selection support for multiple vendors
 - Expert routing across Code, File, Shell, and Debug agents
-- Conversation history and clear session support
+- Web chat history and clear session support
+- Text file uploads in the browser UI
+- Active model display with provider avatar switching
+- Per-turn and session token metrics
 
 ## Requirements
 
@@ -64,6 +67,9 @@ Use the model dropdown in the sidebar.
 ### Supported models
 
 - `deepseek/deepseek-v4-pro`
+- `deepseek/deepseek-chat-v3.1`
+- `deepseek/deepseek-chat`
+- `deepseek/deepseek-r1-0528`
 - `anthropic/claude-opus-4-7`
 - `anthropic/claude-opus-4-6`
 - `openai/gpt-5.5-pro`
@@ -80,7 +86,7 @@ In CLI mode, use:
 - `exit` or `quit` to stop
 - `/clear` to reset the conversation
 
-In web mode, use the `Clear conversation` button.
+In web mode, use the `Clear conversation` button. Uploaded files are attached as bounded text context for the current turn.
 
 ## Project Layout
 
