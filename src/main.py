@@ -599,27 +599,6 @@ class BrowserHandler(http.server.BaseHTTPRequestHandler):
             return
 
         if path == "/themes":
-            self._send_json({"themes": self.memory_manager.available_themes()})
-            return
-
-        self.send_error(HTTPStatus.NOT_FOUND, "Not found")
-
-    def do_POST(self) -> None:
-        path = self.path.split("?", 1)[0]
-        if path == "/chat":
-            payload = self._parse_json()
-            if not payload or "message" not in payload:
-                self.send_error(HTTPStatus.BAD_REQUEST, "'message' is required")
-                return
-            model = payload.get("model")
-            if model:
-                model_str = str(model).strip()
-                local_names = [m["name"] for m in get_local_ollama_models()]
-                available = local_names + config.CLOUD_MODELS
-                if model_str not in available:
-                    self.send_error(HTTPStatus.BAD_REQUEST, f"Invalid model selection: {model_str}")
-                    return
-                if model_str != config.MODEL:
                     config.MODEL = model_str
                     self._load_model_history(model_str)
             message = str(payload["message"]).strip()
