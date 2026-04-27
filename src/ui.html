@@ -342,151 +342,58 @@ main{flex:1;display:flex;flex-direction:column;min-width:0;}
         <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
       </button>
     </div>
-    <div class="input-hint">Powered by Claude Sonnet · multi-agent simulation</div>
+    <div class="input-hint">Powered by DeepSeek · multi-agent harness</div>
   </div>
 </main>
 
 <script>
-const SYSTEM = `You are a multi-agent coding assistant orchestrator. You manage a team of expert agents:
-- CodeExpert: writes, reviews, and refactors code
-- FileExpert: explores project structure and manages files
-- ShellExpert: handles git, builds, test runners, and CLI tasks
-- DebugExpert: diagnoses errors and traces bugs with root-cause rigour
-
-When you route a task to an expert, emit exactly ONE delegation marker on its own line:
-[DELEGATE:ExpertName:Brief task description under 60 chars]
-
-Rules:
-- Always delegate to the most appropriate expert. For complex tasks, chain multiple experts.
-- After delegating, simulate the expert completing the task and show their result.
-- Mark expert output sections with [EXPERT:ExpertName] before the result.
-- Be technical, precise, and detailed in your responses.
-- Use markdown for code blocks, lists, and structure.
-- The user is an experienced systems programmer working with C, C++, Python, and embedded systems.
-- The project is a DeepSeek-powered multi-agent system running via Puter.com's API.`;
-
-const msgs = [];
-let busy = false;
-
 const messagesEl = document.getElementById('messages');
 const inputEl    = document.getElementById('user-input');
 const sendBtn    = document.getElementById('send-btn');
 const statusEl   = document.getElementById('status-label');
 const welcomeEl  = document.getElementById('welcome');
+const clearBtn   = document.getElementById('clear-btn');
 
-const AGENTS = {
-  orchestrator: {dot:'dot-orchestrator', row:'ag-orchestrator'},
-  code:         {dot:'dot-code',         row:'ag-code'},
-  file:         {dot:'dot-file',         row:'ag-file'},
-  shell:        {dot:'dot-shell',        row:'ag-shell'},
-  debug:        {dot:'dot-debug',        row:'ag-debug'},
-};
-
-function setAgentState(key, state) {
-  const a = AGENTS[key]; if (!a) return;
-  const dot = document.getElementById(a.dot);
-  const row = document.getElementById(a.row);
-  dot.className = 'dot' + (state === 'active' ? ' active' : state === 'busy' ? ' busy' : '');
-  row.className = 'agent-row' + (state !== 'idle' ? ' lit' : '');
+function escapeHtml(value) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }
 
-function resetAgents() {
-  Object.keys(AGENTS).forEach(k => setAgentState(k, 'idle'));
+function renderMessage(text) {
+  const escaped = escapeHtml(text);
+  return escaped.replace(/
+/g, '<br>');
 }
 
-function setStatus(text, working=false) {
-  statusEl.textContent = text;
-  statusEl.className   = working ? 'working' : '';
-}
+function appendMessage(role, text) {
+  if (welcomeEl) {
+    welcomeEl.style.display = 'none';
+  }
 
-function escapeHtml(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  bubble.innerHTML = renderMessage(text);
 
-function renderMarkdown(text) {
-  let html = escapeHtml(text);
-  // code blocks
-  html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (_,lang,code) =>
-    `<pre><code>${code.trimEnd()}</code></pre>`);
-  // inline code
-  html = html.replace(/`([^`\n]+)`/g, '<code>$1</code>');
-  // bold
-  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-  // italics
-  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
-  // headers
-  html = html.replace(/^### (.+)$/gm, '<strong>$1</strong>');
-  html = html.replace(/^## (.+)$/gm, '<strong style="font-size:15px">$1</strong>');
-  html = html.replace(/^# (.+)$/gm, '<strong style="font-size:16px">$1</strong>');
-  // unordered lists
-  html = html.replace(/^[\-\*] (.+)$/gm, '<li>$1</li>');
-  html = html.replace(/(<li>.*<\/li>\n?)+/gs, m => `<ul>${m}</ul>`);
-  // numbered lists
-  html = html.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
-  // line breaks
-  html = html.replace(/\n\n/g, '</p><p>');
-  html = html.replace(/\n/g, '<br>');
-  return `<p>${html}</p>`;
-}
+  const msg = document.createElement('div');
+  msg.className = `msg msg-${role}`;
 
-function appendUserMsg(text) {
-  if (welcomeEl) welcomeEl.remove();
-  const d = document.createElement('div');
-  d.className = 'msg msg-user';
-  d.innerHTML = `<div class="msg-meta">You</div><div class="bubble">${renderMarkdown(text)}</div>`;
-  messagesEl.appendChild(d);
-  scrollBottom();
-}
-
-function appendDelegation(expert, task) {
-  const d = document.createElement('div');
-  d.className = 'deleg';
-  d.innerHTML = `<span class="deleg-arrow">→</span><span class="deleg-name">${escapeHtml(expert)}</span><span class="deleg-task">${escapeHtml(task)}</span>`;
-  messagesEl.appendChild(d);
-  scrollBottom();
-  // light up the matching agent dot
-  const key = expert.toLowerCase().replace('expert','');
-  setAgentState(key, 'busy');
-  return d;
-}
-
-function createAgentBubble() {
-  const wrap = document.createElement('div');
-  wrap.className = 'typing-wrap';
-  const typingDiv = document.createElement('div');
-  typingDiv.className = 'typing';
-  typingDiv.innerHTML = '<div class="td"></div><div class="td"></div><div class="td"></div>';
-  wrap.appendChild(typingDiv);
-  messagesEl.appendChild(wrap);
-  scrollBottom();
-  return {wrap, typingDiv};
-}
-
-function finaliseAgentBubble(wrap, typingDiv, expert, fullText) {
-  const contentHtml = renderMarkdown(fullText);
-  const metaLabel   = expert ? `🤖 ${expert}` : '🤖 Orchestrator';
-  typingDiv.replaceWith(
-    Object.assign(document.createElement('div'), {
-      className:'bubble',
-      innerHTML: contentHtml
-    })
-  );
   const meta = document.createElement('div');
   meta.className = 'msg-meta';
-  meta.textContent = metaLabel;
-  wrap.insertBefore(meta, wrap.firstChild);
-  wrap.className = 'msg msg-agent';
-  scrollBottom();
-}
+  meta.textContent = role === 'user' ? 'You' : 'Orchestrator';
 
-function scrollBottom() {
+  msg.appendChild(meta);
+  msg.appendChild(bubble);
+  messagesEl.appendChild(msg);
   messagesEl.scrollTop = messagesEl.scrollHeight;
 }
 
-function fillInput(text) {
-  inputEl.value = text;
-  inputEl.focus();
-  autoResize();
+function setStatus(text, working = false) {
+  statusEl.textContent = text;
+  statusEl.className = working ? 'working' : '';
 }
 
 function autoResize() {
@@ -494,131 +401,61 @@ function autoResize() {
   inputEl.style.height = Math.min(inputEl.scrollHeight, 160) + 'px';
 }
 
-async function sendMessage() {
-  const text = inputEl.value.trim();
-  if (!text || busy) return;
-  busy = true;
-  sendBtn.disabled = true;
-  inputEl.value = '';
-  autoResize();
-
-  appendUserMsg(text);
-  msgs.push({role:'user', content:text});
-
-  setStatus('thinking…', true);
-  setAgentState('orchestrator', 'active');
-
-  const {wrap, typingDiv} = createAgentBubble();
-
-  try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        system: SYSTEM,
-        messages: msgs,
-        stream: true
-      })
-    });
-
-    const reader = resp.body.getReader();
-    const dec = new TextDecoder();
-    let fullText = '';
-    let currentExpert = null;
-    let buffer = '';
-    let delegElems = {};
-
-    setStatus('streaming…', true);
-
-    while (true) {
-      const {done, value} = await reader.read();
-      if (done) break;
-      buffer += dec.decode(value, {stream:true});
-      const lines = buffer.split('\n');
-      buffer = lines.pop();
-
-      for (const line of lines) {
-        if (!line.startsWith('data:')) continue;
-        const data = line.slice(5).trim();
-        if (data === '[DONE]') break;
-        try {
-          const ev = JSON.parse(data);
-          if (ev.type === 'content_block_delta' && ev.delta?.text) {
-            fullText += ev.delta.text;
-          }
-        } catch {}
-      }
-
-      // parse delegation markers out of accumulated text
-      const delegRe = /\[DELEGATE:(\w+):([^\]]+)\]/g;
-      let m;
-      while ((m = delegRe.exec(fullText)) !== null) {
-        const key = m[1] + m[2];
-        if (!delegElems[key]) {
-          delegElems[key] = appendDelegation(m[1], m[2]);
-          const agentKey = m[1].toLowerCase().replace('expert','');
-          setAgentState(agentKey, 'busy');
-          setTimeout(()=>setAgentState(agentKey,'active'), 800);
-        }
-      }
-
-      // detect current expert from [EXPERT:Name] markers
-      const expRe = /\[EXPERT:(\w+)\]/g;
-      let em;
-      while ((em = expRe.exec(fullText)) !== null) {
-        currentExpert = em[1];
-      }
-
-      scrollBottom();
-    }
-
-    // clean up internal markers before display
-    const cleanText = fullText
-      .replace(/\[DELEGATE:[^\]]+\]/g, '')
-      .replace(/\[EXPERT:[^\]]+\]/g, '')
-      .trim();
-
-    finaliseAgentBubble(wrap, typingDiv, currentExpert || 'Orchestrator', cleanText);
-    msgs.push({role:'assistant', content:fullText});
-
-  } catch (err) {
-    finaliseAgentBubble(wrap, typingDiv, 'Error', `Request failed: ${err.message}`);
+function resetConversationView() {
+  messagesEl.innerHTML = '';
+  if (welcomeEl) {
+    welcomeEl.style.display = 'flex';
+    messagesEl.appendChild(welcomeEl);
   }
-
-  resetAgents();
   setStatus('ready');
-  busy = false;
-  sendBtn.disabled = false;
-  inputEl.focus();
 }
 
-// Events
+async function sendMessage() {
+  const text = inputEl.value.trim();
+  if (!text) return;
+
+  inputEl.value = '';
+  autoResize();
+  appendMessage('user', text);
+  setStatus('thinking...', true);
+  sendBtn.disabled = true;
+
+  try {
+    const response = await fetch('/chat', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({message: text}),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Server returned ${response.status}`);
+    }
+
+    const data = await response.json();
+    appendMessage('assistant', data.reply || 'No reply received.');
+  } catch (err) {
+    appendMessage('assistant', `Error: ${escapeHtml(String(err))}`);
+  } finally {
+    setStatus('ready');
+    sendBtn.disabled = false;
+    inputEl.focus();
+  }
+}
+
 sendBtn.addEventListener('click', sendMessage);
-inputEl.addEventListener('keydown', e => {
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+inputEl.addEventListener('keydown', event => {
+  if (event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault();
+    sendMessage();
+  }
 });
 inputEl.addEventListener('input', autoResize);
-document.getElementById('clear-btn').addEventListener('click', () => {
-  msgs.length = 0;
-  messagesEl.innerHTML = '';
-  const w = document.createElement('div');
-  w.className = 'welcome'; w.id = 'welcome';
-  w.innerHTML = `
-    <div class="welcome-glyph">◈</div>
-    <h2>How can I help?</h2>
-    <p>Ask me to write code, debug errors, explore your project, run commands, or design new features.</p>
-    <div class="chips">
-      <div class="chip" onclick="fillInput('Write a Python function to parse JSON files')">Write Python code</div>
-      <div class="chip" onclick="fillInput('Debug this error: AttributeError: object has no attribute')">Debug an error</div>
-      <div class="chip" onclick="fillInput('Explain how the orchestrator routes tasks to experts')">Explain the architecture</div>
-      <div class="chip" onclick="fillInput('How do I add a new expert agent to this system?')">Add a new agent</div>
-    </div>`;
-  messagesEl.appendChild(w);
-  resetAgents();
-  setStatus('ready');
+clearBtn.addEventListener('click', () => {
+  fetch('/clear', {method:'POST'}).catch(() => null);
+  resetConversationView();
 });
+
+setStatus('ready');
 </script>
 </body>
 </html>
