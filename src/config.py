@@ -50,7 +50,7 @@ DEFAULT_USER_PROFILE = {
     "timezone": "",
     "bio": "A practical, detail-oriented software engineer who appreciates concise technical answers and clear explanations.",
     "preferences": "Use my name, remember my role and preferences, and keep recommendations actionable.",
-    "theme": "default",
+    "theme": "sunset-boulevard",
 }
 MODEL           = "qwen2.5-coder:14b"
 TOOL_FALLBACK_MODELS = [

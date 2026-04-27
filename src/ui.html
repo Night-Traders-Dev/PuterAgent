@@ -978,6 +978,7 @@ settingsBtn.addEventListener('click', openSettings);
 settingsClose.addEventListener('click', closeSettings);
 saveProfileBtn.addEventListener('click', saveProfile);
 runAnalysisBtn.addEventListener('click', runAnalysis);
+themeSelect.addEventListener('change', () => setTheme(themeSelect.value));
 
 updateActiveModel(modelSelect.value);
 setStatus('ready');
