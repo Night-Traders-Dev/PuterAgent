@@ -1300,6 +1300,17 @@ loadHistory();
 updateCloudUsage();
 setInterval(async () => {
   try {
+    const response = await fetch('/sandbox-status');
+    const data = await response.json();
+    const statusEl = document.getElementById('sandbox-status');
+    if (statusEl) {
+      statusEl.textContent = `Sandbox Status: ${data.status}`;
+    }
+  } catch (err) {}
+}, 5000);
+
+setInterval(async () => {
+  try {
     const response = await fetch('/logs');
     const data = await response.json();
     const logEl = document.getElementById('system-logs');
