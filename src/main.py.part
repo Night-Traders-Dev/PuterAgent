@@ -1,0 +1,8 @@
+# Simplified Chat Handler
+    def do_POST(self) -> None:
+        path = self.path.split("?", 1)[0]
+        if path == "/chat":
+            chat_queue.put(self._parse_json())
+            self._send_json({"status": "queued"})
+            return
+        # ...

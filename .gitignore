@@ -6,3 +6,4 @@ SysPrompt
 __pycache__/
 .puteragent/
 .memory/
+server.log
