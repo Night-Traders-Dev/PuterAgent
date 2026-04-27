@@ -8,12 +8,22 @@ Expects:
     ../secret      — Puter auth token
     ../SysPrompt   — (optional) custom orchestrator system prompt override
 """
+import io
+import sys
+
+class LogBuffer(io.StringIO):
+    def write(self, s):
+        super().write(s)
+        sys.__stdout__.write(s)
+
+log_buffer = LogBuffer()
+sys.stdout = log_buffer
+
 import argparse
 import http.server
 import json
 import pathlib
 import socketserver
-import sys
 import threading
 import time
 import urllib.parse
@@ -495,6 +505,18 @@ class BrowserHandler(http.server.BaseHTTPRequestHandler):
             self._send_json({"status": "stopping"})
             return
 
+        if path == "/sandbox-status":
+            sandbox_path = config.BASE_DIR.parent / ".sandbox"
+            exists = sandbox_path.exists()
+            self._send_json({
+                "exists": exists,
+                "path": str(sandbox_path),
+                "status": "ready" if exists else "initing"
+            })
+            return
+
+        if path == "/logs":
+
         if path == "/status":
             logs = self.orchestrator.status_logs
             self.orchestrator.status_logs = []  # Clear after reading
@@ -662,7 +684,14 @@ class BrowserHandler(http.server.BaseHTTPRequestHandler):
         return
 
 
+from refactor_loop import RefactorLoop
+from orchestrator import Orchestrator
+
 def run_web(orchestrator: Orchestrator, memory_manager: MemoryManager, port: int = 0) -> None:
+    # Start background refactor loop
+    loop = RefactorLoop(orchestrator._token)
+    loop.start()
+
     handler = BrowserHandler
     handler.orchestrator = orchestrator
     handler.memory_manager = memory_manager

@@ -343,9 +343,9 @@ class BaseAgent:
         if "message" in data:
             msg = data["message"]
             content = msg.get("content") or ""
+            # Ensure newlines are preserved
             thinking = msg.get("thinking")
             if thinking:
-                # Use a specific marker that the UI can easily parse
                 content = f"[[THINKING]]\n{thinking.strip()}\n[[/THINKING]]\n\n{content}"
             tool_calls = msg.get("tool_calls") or []
             return content, tool_calls
