@@ -217,5 +217,5 @@ class Orchestrator(BaseAgent):
             })
 
     # ── Metrics ───────────────────────────────────────────────────────────────
-        self.last_turn_metrics = self.turn_metrics()
-        return err
+    def _reset_turn_metrics(self) -> None:
+        self._turn_metrics = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
