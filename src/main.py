@@ -48,6 +48,12 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Run using the browser UI via ui.html.",
     )
+    parser.add_argument(
+        "--model",
+        choices=config.AVAILABLE_MODELS,
+        default=config.MODEL,
+        help="Select the model to use.",
+    )
     return parser.parse_args()
 
 
@@ -141,6 +147,13 @@ class BrowserHandler(http.server.BaseHTTPRequestHandler):
             if not payload or "message" not in payload:
                 self.send_error(HTTPStatus.BAD_REQUEST, "'message' is required")
                 return
+            model = payload.get("model")
+            if model:
+                model_str = str(model).strip()
+                if model_str not in config.AVAILABLE_MODELS:
+                    self.send_error(HTTPStatus.BAD_REQUEST, "Invalid model selection")
+                    return
+                config.MODEL = model_str
             message = str(payload["message"]).strip()
             if not message:
                 self.send_error(HTTPStatus.BAD_REQUEST, "'message' must not be empty")
@@ -200,6 +213,7 @@ def main() -> None:
         print(f"❌  {exc}")
         sys.exit(1)
 
+    config.MODEL = args.model
     orchestrator = Orchestrator(token=token)
 
     if args.web:

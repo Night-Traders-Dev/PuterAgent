@@ -11,6 +11,17 @@ WORKSPACE   = pathlib.Path.cwd()   # All file tools are scoped to this dir
 
 # ── API ───────────────────────────────────────────────────────────────────────
 API_URL         = "https://api.puter.com/drivers/call"
+AVAILABLE_MODELS = [
+    "deepseek/deepseek-v4-pro",
+    "anthropic/claude-opus-4-7",
+    "anthropic/claude-opus-4-6",
+    "openai/gpt-5.5-pro",
+    "moonshotai/kimi-k2.6",
+    "x-ai/grok-4.20-multi-agent",
+    "minimax/minimax-m2.7",
+    "nvidia/nemotron-3-super-120b-a12b",
+    "google/gemini-3.1-pro-preview",
+]
 MODEL           = "deepseek/deepseek-v4-pro"
 REQUEST_TIMEOUT = 90          # seconds per HTTP request
 MAX_TOOL_ITERATIONS = 12      # hard cap on agentic loops per agent
