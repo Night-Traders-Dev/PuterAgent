@@ -598,14 +598,6 @@ class BrowserHandler(http.server.BaseHTTPRequestHandler):
                 })
             return
 
-        if path == "/themes":
-                    config.MODEL = model_str
-                    self._load_model_history(model_str)
-            message = str(payload["message"]).strip()
-            attachments = self._coerce_attachments(payload)
-            if not message and not attachments:
-                self.send_error(HTTPStatus.BAD_REQUEST, "'message' or attachments are required")
-                return
 
             prompt = self._message_with_attachments(message, attachments)
             reply = self.orchestrator.chat(prompt)
