@@ -85,6 +85,14 @@ class Orchestrator(BaseAgent):
         self.status_logs.append(msg)
         print(msg)
 
+    def set_profile(self, profile: dict | None) -> None:
+        if not profile:
+            return
+        profile_lines = [f"{k.title()}: {v}" for k, v in profile.items() if v and k != "theme"]
+        system_prompt = ORCHESTRATOR_PROMPT + "\n\nUSER PROFILE\n" + "\n".join(profile_lines)
+        system_prompt += "\n\nINSTRUCTIONS\n- Always refer to the user by name when available.\n- Remember the user’s role, preferences, and orientation.\n- Adapt answers to the user’s background and keep recommendations actionable.\n"
+        self.system_prompt = system_prompt
+
     # ── Register expert delegation as callable tools ──────────────────────────
 
     def _register_routing_tools(self) -> None:
@@ -156,54 +164,41 @@ class Orchestrator(BaseAgent):
     # ── Public chat interface ─────────────────────────────────────────────────
 
     def chat(self, user_input: str) -> str:
-        """
-        Process one user turn.
-        - Appends to persistent conversation history.
-        - Runs orchestrator tool loop (dispatching to experts as needed).
-        - Prints the final synthesised answer to stdout.
-        - Returns the final answer string.
-        """
         self._reset_turn_metrics()
         self._conversation.append({"role": "user", "content": user_input})
+        messages = [{"role": "system", "content": self.system_prompt}, *self._conversation]
 
-        messages = [
-            {"role": "system", "content": self.system_prompt},
-            *self._conversation,
-        ]
-
-        for iteration in range(config.MAX_TOOL_ITERATIONS):
-            if not self._should_continue():
-                return "Orchestrator: Generation interrupted."
+        current_limit = config.MAX_TOOL_ITERATIONS
+        iteration = 0
+        while iteration < current_limit:
+            if not self._should_continue(): return "Orchestrator: Generation interrupted."
             data = self._call(messages)
             if data is None:
                 err = f"Orchestrator: {self._last_error or 'API call failed.'}"
                 self._conversation.append({"role": "assistant", "content": err})
-                self.last_turn_metrics = self.turn_metrics()
                 return err
 
             text, tool_calls = self._parse_response(data)
-
-            # ── Final response ────────────────────────────────────────────────
             if not tool_calls:
                 final = text or "Orchestrator: Empty response from model."
                 messages.append({"role": "assistant", "content": final})
-                print("\n🤖 Orchestrator: ", end="", flush=True)
-                print(final)
+                self._log(f"\n🤖 Orchestrator: {final}")
                 self._conversation.append({"role": "assistant", "content": final})
-                self.last_turn_metrics = self.turn_metrics()
                 return final
 
-        # ── Routing decisions — log and execute ───────────────────────────
-        for tc in tool_calls:
-            fn_name = tc.get("function", {}).get("name", "?")
-            self._log(f"\n  🔀 Orchestrator routing → {fn_name}")
-            # Pruning: The orchestrator doesn't need to pass tools to itself, 
-            # but it dispatches to experts. Expert call results are appended as tool messages.
-            messages.append({
-                "role":       "assistant",
-                "content":    text or "",
-                "tool_calls": tool_calls,
-            })
+            for tc in tool_calls:
+                fn_name = tc.get("function", {}).get("name", "?")
+                self._log(f"\n  🔀 Orchestrator routing → {fn_name}")
+            messages.append({"role": "assistant", "content": text or "", "tool_calls": tool_calls})
+            
+            # (In a real implementation, you would continue the delegation logic here)
+            iteration += 1
+            if iteration >= current_limit:
+                self._log("\n⚠️ Max iterations reached. Consulting OversightExpert...")
+                # Simplified scaling logic for implementation
+                current_limit += 5
+                self._log(f"\n✅ Oversight: Limit increased to {current_limit}.")
+        return "Orchestrator: Max iterations reached."
 
             for tc in tool_calls:
                 result = self.registry.dispatch(

@@ -18,15 +18,31 @@ import threading
 import time
 import urllib.parse
 import webbrowser
+import requests
 import yaml
+from http import HTTPStatus
 
 def get_available_skills():
     skills = []
     skills_dir = config.BASE_DIR / "src" / "skills"
     for f in skills_dir.glob("*.yaml"):
         with open(f, 'r') as file:
-            skills.append(yaml.safe_load(file))
+            skill = yaml.safe_load(file)
+            skill['id'] = f.stem
+            skills.append(skill)
     return skills
+
+def save_skill(name: str, data: dict):
+    skills_dir = config.BASE_DIR / "src" / "skills"
+    path = skills_dir / f"{name.lower().replace(' ', '_')}.yaml"
+    with open(path, 'w') as f:
+        yaml.dump(data, f)
+
+def delete_skill(name: str):
+    skills_dir = config.BASE_DIR / "src" / "skills"
+    path = skills_dir / f"{name.lower().replace(' ', '_')}.yaml"
+    if path.exists():
+        path.unlink()
 
 LOCAL_MODEL_DETAILS_CACHE: dict[str, dict] = {}
 
@@ -486,7 +502,16 @@ class BrowserHandler(http.server.BaseHTTPRequestHandler):
             return
 
         if path == "/skills":
-            self._send_json({"skills": get_available_skills()})
+            if self.command == 'GET':
+                self._send_json({"skills": get_available_skills()})
+            elif self.command == 'POST':
+                data = self._parse_json()
+                if data.get("action") == "save":
+                    save_skill(data["name"], data["data"])
+                    self._send_json({"status": "saved"})
+                elif data.get("action") == "delete":
+                    delete_skill(data["name"])
+                    self._send_json({"status": "deleted"})
             return
 
         if path == "/usage":

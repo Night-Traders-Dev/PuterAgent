@@ -196,7 +196,11 @@ main{flex:1;display:flex;flex-direction:column;min-width:0;}
   color:var(--muted);font-family:var(--mono);font-size:12px;
   padding:2px 12px;border-radius:0;
 }
-.msg-agent.msg-status .msg-body{align-items:flex-start;}
+.msg-ghost .bubble{
+  background:rgba(231,111,81,.05);border:1px dashed rgba(231,111,81,.3);
+  color:var(--muted);font-style:italic;
+}
+.msg-ghost .td{background:var(--muted);}
 .bubble pre{
   background:rgba(22,40,51,.8);border:1px solid var(--border);
   border-radius:7px;padding:12px;margin:8px 0;overflow-x:auto;
@@ -472,9 +476,13 @@ textarea{resize:vertical;min-height:84px;}
       </div>
 
       <div id="tab-skills" class="tab-pane">
-        <div>
-          <div class="field-label">Select Skill</div>
-          <select id="skill-select"></select>
+        <div class="field-label">Managed Skills</div>
+        <select id="skill-list-select" onchange="loadSkill(this.value)"></select>
+        <input id="skill-name" type="text" placeholder="Skill name">
+        <textarea id="skill-prompt" placeholder="Skill prompt..."></textarea>
+        <div class="settings-actions">
+          <button class="primary-btn" onclick="saveSkill()">Save</button>
+          <button class="secondary-btn" onclick="deleteSkill()">Delete</button>
         </div>
       </div>
 
@@ -783,6 +791,45 @@ modeToggle.addEventListener('click', (e) => {
   }
 });
 
+let allSkills = [];
+
+async function loadSkills() {
+  const response = await fetch('/skills');
+  const data = await response.json();
+  allSkills = data.skills;
+  const list = document.getElementById('skill-list-select');
+  list.innerHTML = allSkills.map(s => `<option value="${escapeHtml(s.id)}">${escapeHtml(s.name)}</option>`).join('');
+  if (allSkills.length > 0) loadSkill(allSkills[0].id);
+}
+
+function loadSkill(id) {
+  const skill = allSkills.find(s => s.id === id);
+  if (!skill) return;
+  document.getElementById('skill-name').value = skill.name;
+  document.getElementById('skill-prompt').value = skill.prompt;
+}
+
+async function saveSkill() {
+  const name = document.getElementById('skill-name').value;
+  const prompt = document.getElementById('skill-prompt').value;
+  await fetch('/skills', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({action: 'save', name, data: {name, prompt}})
+  });
+  loadSkills();
+}
+
+async function deleteSkill() {
+  const name = document.getElementById('skill-name').value;
+  await fetch('/skills', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({action: 'delete', name})
+  });
+  loadSkills();
+}
+
 async function loadProfileSettings() {
   try {
     const response = await fetch('/profile');
@@ -811,6 +858,8 @@ async function loadProfileSettings() {
     const mHtml = allModels.map(m => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join('');
     modelSelectSettings.innerHTML = mHtml;
     expertModelSelectSettings.innerHTML = mHtml;
+    
+    loadSkills();
     
     const chosen = profile.theme || localStorage.getItem('puter-theme') || themeSelect.value;
     themeSelect.value = chosen;
@@ -1162,10 +1211,18 @@ async function sendMessage() {
 async function processMessage(text, attachments) {
   isGenerating = true;
   updateUIState();
-  const localId = `local-${Date.now()}`;
-  appendMessage('user', text, {id: localId, attachments, model: modelSelect.value});
-  setStatus('thinking...', true);
   
+  // Inject ghost bubble
+  const ghostId = `ghost-${Date.now()}`;
+  appendMessage('user', text, {id: `user-${Date.now()}`, attachments, model: modelSelect.value});
+  
+  const ghostMsg = document.createElement('div');
+  ghostMsg.className = 'msg msg-agent msg-ghost';
+  ghostMsg.id = ghostId;
+  ghostMsg.innerHTML = `<div class="msg-body"><div class="bubble"><div class="typing"><div class="td"></div><div class="td"></div><div class="td"></div></div></div></div>`;
+  messagesEl.appendChild(ghostMsg);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+
   try {
     const response = await fetch('/chat', {
       method: 'POST',
@@ -1179,18 +1236,22 @@ async function processMessage(text, attachments) {
     const reply = typeof data.reply === 'string' && data.reply.trim()
       ? data.reply
       : 'Empty response from the server.';
-    appendMessage('assistant', reply, {
-      model: data.model || modelSelect.value,
-      used_model: data.used_model || data.model || modelSelect.value,
-      metrics: data.metrics,
-    });
-    updateMetrics(data.session_metrics || {});
-    updateActiveModel(data.model || modelSelect.value, data.used_model);
-    if (data.model && data.model.includes('/')) {
-      updateCloudUsage();
+      
+    // Replace ghost with actual response
+    const actualMsg = document.createElement('div');
+    actualMsg.className = 'msg msg-agent';
+    actualMsg.innerHTML = `<div class="msg-body"><div class="bubble">${renderMessageText(reply)}</div></div>`;
+    messagesEl.replaceChild(actualMsg, ghostMsg);
+    
+    // Add additional metadata if present
+    if (data.metrics) {
+        const meta = document.createElement('div');
+        meta.className = 'message-metrics';
+        meta.textContent = `input ${formatCount(data.metrics.prompt_tokens)} · output ${formatCount(data.metrics.completion_tokens)} · total ${formatCount(data.metrics.total_tokens)}`;
+        actualMsg.querySelector('.msg-body').appendChild(meta);
     }
   } catch (err) {
-    appendMessage('assistant', `Error: ${String(err)}`, {model: modelSelect.value});
+    ghostMsg.querySelector('.bubble').innerHTML = `Error: ${String(err)}`;
   } finally {
     isGenerating = false;
     updateUIState();
