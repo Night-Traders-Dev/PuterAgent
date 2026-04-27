@@ -12,6 +12,7 @@ WORKSPACE   = pathlib.Path.cwd()   # All file tools are scoped to this dir
 # ── API ───────────────────────────────────────────────────────────────────────
 LOCAL_API_URL   = "http://localhost:11434/api/chat"
 CLOUD_API_URL   = "https://api.puter.com/v1/ai/chat"
+USAGE_API_URL   = "https://api.puter.com/drivers/usage"
 API_URL         = LOCAL_API_URL  # Default to local
 
 MEMORY_PATH     = BASE_DIR.parent / ".memory"

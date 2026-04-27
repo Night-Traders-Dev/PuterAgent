@@ -32,6 +32,19 @@ def get_local_ollama_models() -> list[str]:
         pass
     return config.LOCAL_MODELS
 
+def get_puter_usage(token: str) -> dict:
+    """Fetch Puter account usage/balance."""
+    if not token or token == "ollama-local":
+        return {"success": False, "error": "No cloud token available"}
+    try:
+        headers = {"Authorization": f"Bearer {token}"}
+        resp = requests.get(config.USAGE_API_URL, headers=headers, timeout=5)
+        if resp.status_code == 200:
+            return {"success": True, "data": resp.json()}
+        return {"success": False, "error": f"Puter API error: {resp.status_code}"}
+    except Exception as exc:
+        return {"success": False, "error": str(exc)}
+
 from orchestrator import Orchestrator
 from file_tools import _safe_path
 from shell_tools import _run_shell
@@ -408,6 +421,12 @@ class BrowserHandler(http.server.BaseHTTPRequestHandler):
                 self._send_json({"models": config.CLOUD_MODELS})
             else:
                 self._send_json({"models": get_local_ollama_models()})
+            return
+
+        if path == "/usage":
+            token = config.load_token()
+            usage = get_puter_usage(token)
+            self._send_json(usage)
             return
 
         if path == "/profile":

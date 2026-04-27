@@ -131,6 +131,13 @@ main{flex:1;display:flex;flex-direction:column;min-width:0;}
   border-radius:8px;background:rgba(243,237,228,.045);font-family:var(--mono);font-size:10.5px;color:var(--muted);
 }
 .metrics b{color:var(--sand);font-weight:500;}
+.cloud-usage{
+  display:flex;align-items:center;gap:10px;padding:6px 9px;border:1px solid rgba(255,255,255,.08);
+  border-radius:8px;background:rgba(233,196,106,.05);font-family:var(--mono);font-size:10.5px;color:var(--muted);
+  cursor:pointer;transition:background .15s;
+}
+.cloud-usage:hover{background:rgba(233,196,106,.1);}
+.cloud-usage b{color:var(--sand);font-weight:600;}
 #status-label{font-family:var(--mono);font-size:11px;color:var(--muted);transition:color .3s;white-space:nowrap;}
 #status-label.working{color:var(--coral);}
 
@@ -350,6 +357,9 @@ textarea{resize:vertical;min-height:84px;}
       </div>
     </div>
     <div class="topbar-right">
+      <div id="cloud-usage-wrap" class="cloud-usage" title="Cloud credits (Click to refresh)" style="display:none;">
+        <span>Cloud <b id="cloud-remaining">$0.00</b> / <span id="cloud-total">$0.00</span></span>
+      </div>
       <div class="metrics">
         <span>In <b id="metric-input">0</b></span>
         <span>Out <b id="metric-output">0</b></span>
@@ -457,6 +467,9 @@ const pendingFilesEl = document.getElementById('pending-files');
 const metricInputEl = document.getElementById('metric-input');
 const metricOutputEl = document.getElementById('metric-output');
 const metricTotalEl = document.getElementById('metric-total');
+const cloudUsageWrap = document.getElementById('cloud-usage-wrap');
+const cloudRemainingEl = document.getElementById('cloud-remaining');
+const cloudTotalEl = document.getElementById('cloud-total');
 const settingsBtn = document.getElementById('settings-btn');
 const settingsPanel = document.getElementById('settings-panel');
 const settingsClose = document.getElementById('settings-close');
@@ -787,6 +800,31 @@ function updateMetrics(sessionUsage = {}) {
   metricTotalEl.textContent = formatCount(sessionUsage.total_tokens);
 }
 
+async function updateCloudUsage() {
+  try {
+    const response = await fetch('/usage');
+    const result = await response.json();
+    if (result.success && result.data && result.data.allowanceInfo) {
+      const remaining = result.data.allowanceInfo.remaining || 0;
+      const total = result.data.allowanceInfo.monthUsageAllowance || 0;
+      
+      // Microcents to USD: 1,000,000 = $0.01, so divide by 100,000,000
+      const fmt = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val / 100000000);
+      
+      cloudRemainingEl.textContent = fmt(remaining);
+      cloudTotalEl.textContent = fmt(total);
+      cloudUsageWrap.style.display = 'flex';
+    } else {
+      cloudUsageWrap.style.display = 'none';
+    }
+  } catch (err) {
+    console.warn('Failed to fetch cloud usage', err);
+    cloudUsageWrap.style.display = 'none';
+  }
+}
+
+cloudUsageWrap.addEventListener('click', updateCloudUsage);
+
 function appendMessage(role, text, options = {}) {
   if (welcomeEl) welcomeEl.style.display = 'none';
 
@@ -951,6 +989,9 @@ async function sendMessage() {
     });
     updateMetrics(data.session_metrics || {});
     updateActiveModel(data.model || modelSelect.value, data.used_model);
+    if (data.model && data.model.includes('/')) {
+      updateCloudUsage();
+    }
   } catch (err) {
     appendMessage('assistant', `Error: ${String(err)}`, {model: modelSelect.value});
   } finally {
@@ -991,6 +1032,7 @@ updateActiveModel(modelSelect.value);
 setStatus('ready');
 loadProfileSettings();
 loadHistory();
+updateCloudUsage();
 </script>
 </body>
 </html>
