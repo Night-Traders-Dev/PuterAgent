@@ -168,11 +168,13 @@ class Orchestrator(BaseAgent):
                 self.last_turn_metrics = self.turn_metrics()
                 return final
 
-            # ── Routing decisions — log and execute ───────────────────────────
+        # ── Routing decisions — log and execute ───────────────────────────
             for tc in tool_calls:
                 fn_name = tc.get("function", {}).get("name", "?")
                 print(f"\n  🔀 Orchestrator routing → {fn_name}")
 
+            # Pruning: The orchestrator doesn't need to pass tools to itself, 
+            # but it dispatches to experts. Expert call results are appended as tool messages.
             messages.append({
                 "role":       "assistant",
                 "content":    text or "",

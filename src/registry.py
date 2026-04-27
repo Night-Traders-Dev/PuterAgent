@@ -78,24 +78,31 @@ class ToolRegistry:
 
     def __init__(self) -> None:
         self._tools: dict[str, Tool] = {}
+        self._cached_schemas: list[dict] | None = None
 
     def register(self, tool: Tool) -> None:
         self._tools[tool.name] = tool
+        self._cached_schemas = None
 
     def get(self, name: str) -> Tool | None:
         return self._tools.get(name)
 
     def schemas(self) -> list[dict]:
         """Return OpenAI-compatible tool schemas for the API payload."""
-        return [t.to_schema() for t in self._tools.values()]
+        if self._cached_schemas is None:
+            self._cached_schemas = [t.to_schema() for t in self._tools.values()]
+        return self._cached_schemas
 
-    def dispatch(self, name: str, arguments: str) -> str:
+    def dispatch(self, name: str, arguments: str | dict) -> str:
         """Execute a tool by name, decoding JSON arguments."""
         tool = self.get(name)
         if not tool:
             return json.dumps({"success": False, "error": f"Unknown tool: '{name}'"})
         try:
-            kwargs = json.loads(arguments) if arguments.strip() else {}
+            if isinstance(arguments, dict):
+                kwargs = arguments
+            else:
+                kwargs = json.loads(arguments) if arguments.strip() else {}
             return tool.execute(**kwargs)
         except json.JSONDecodeError as exc:
             return json.dumps({"success": False, "error": f"Malformed arguments JSON: {exc}"})

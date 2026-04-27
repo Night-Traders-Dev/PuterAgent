@@ -52,24 +52,40 @@ def _write_file(path: str, content: str, mode: str = "write") -> dict:
         return {"success": False, "error": str(exc)}
 
 
+from config import WORKSPACE
+import functools
+
+# Cache for list_directory (TTL: 5s)
+@functools.lru_cache(maxsize=16)
+def _cached_list_dir(path: str, recursive: bool, mtime: float) -> dict:
+    # This dummy mtime argument ensures invalidation when file system changes
+    return _list_directory_impl(path, recursive)
+
+def _list_directory_impl(path: str, recursive: bool) -> dict:
+    p = _safe_path(path)
+    if not p.is_dir():
+        return {"success": False, "error": f"Not a directory: {path}"}
+    iterator = p.rglob("*") if recursive else p.iterdir()
+    entries = sorted(
+        [
+            {
+                "name": str(item.relative_to(p)) if recursive else item.name,
+                "type": "dir" if item.is_dir() else "file",
+                "size": item.stat().st_size if item.is_file() else None,
+            }
+            for item in iterator
+        ],
+        key=lambda x: (x["type"] == "file", x["name"]),
+    )
+    return {"success": True, "path": str(p), "count": len(entries), "entries": entries}
+
 def _list_directory(path: str = ".", recursive: bool = False) -> dict:
     try:
         p = _safe_path(path)
-        if not p.is_dir():
-            return {"success": False, "error": f"Not a directory: {path}"}
-        iterator = p.rglob("*") if recursive else p.iterdir()
-        entries = sorted(
-            [
-                {
-                    "name": str(item.relative_to(p)) if recursive else item.name,
-                    "type": "dir" if item.is_dir() else "file",
-                    "size": item.stat().st_size if item.is_file() else None,
-                }
-                for item in iterator
-            ],
-            key=lambda x: (x["type"] == "file", x["name"]),  # dirs first
-        )
-        return {"success": True, "path": str(p), "count": len(entries), "entries": entries}
+        mtime = p.stat().st_mtime if p.exists() else 0.0
+        # Quantize mtime to 5s windows for cache invalidation
+        mtime_window = int(mtime / 5)
+        return _cached_list_dir(path, recursive, mtime_window)
     except Exception as exc:
         return {"success": False, "error": str(exc)}
 

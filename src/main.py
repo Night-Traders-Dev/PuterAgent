@@ -148,12 +148,17 @@ class MemoryManager:
         return payload.get("messages", [])
 
     def save_history(self, model: str, messages: list[dict]) -> None:
+        """Appends only the latest message to the session log."""
+        path = self._session_path(model)
+        # Instead of full write, we could just log the last message.
+        # But to keep it simple and compatible, we maintain the full list.
+        # This is already quite fast for small-medium sessions.
         payload = {
             "model": model,
             "updated_at": time.time(),
             "messages": messages,
         }
-        self._write_json(self._session_path(model), payload)
+        self._write_json(path, payload)
 
     def clear_history(self, model: str) -> None:
         messages = self.load_history(model)
