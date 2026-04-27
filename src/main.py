@@ -18,6 +18,7 @@ import threading
 import time
 import urllib.parse
 import webbrowser
+import requests
 from http import HTTPStatus
 
 def get_local_ollama_models() -> list[str]:

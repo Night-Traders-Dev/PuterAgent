@@ -96,6 +96,7 @@ aside .spacer{flex:1;}
   width:100%;padding:8px 10px;border:1px solid rgba(255,255,255,.12);
   border-radius:8px;background:rgba(243,237,228,.06);color:var(--text);
   font-family:var(--mono);font-size:11px;outline:none;
+  text-overflow:ellipsis;overflow:hidden;white-space:nowrap;
 }
 .model-select:focus{border-color:var(--border2);}
 .model-select option{background:var(--teal3);color:var(--text);}
@@ -502,6 +503,12 @@ function profileFor(model) {
 
 function shortModel(model) {
   const value = String(model || '');
+  if (value.includes('hf.co/')) {
+    const parts = value.split(':');
+    const namePart = parts[0].split('/').pop();
+    const tagPart = parts[1] || '';
+    return tagPart ? `${namePart}:${tagPart}` : namePart;
+  }
   if (value.includes(':')) {
     return value;
   }
